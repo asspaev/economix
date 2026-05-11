@@ -11,6 +11,8 @@ dependencies = [
     "pydantic (>=2.13.4,<3.0.0)",
     "uvicorn (>=0.46.0,<0.47.0)",
     "loguru (>=0.7.3,<0.8.0)",
+    "sqlalchemy[asyncio] (>=2.0.36,<3.0.0)",
+    "asyncpg (>=0.30.0,<0.31.0)",
 ]
 
 

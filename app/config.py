@@ -25,6 +25,48 @@ class AppConfig(BaseModel):
     version: str = "1.0.0"
 
 
+class SqlConfig(BaseModel):
+    """Конфигурация подключения к PostgreSQL через SQLAlchemy.
+
+    Описывает параметры асинхронного движка SQLAlchemy и пула соединений,
+    а также формирует DSN для драйвера ``asyncpg``.
+
+    Attributes:
+        host: Хост сервера PostgreSQL.
+        port: TCP-порт сервера PostgreSQL.
+        user: Имя пользователя для аутентификации.
+        password: Пароль пользователя для аутентификации.
+        database: Имя базы данных, к которой выполняется подключение.
+        echo: Флаг логирования SQL-запросов движком SQLAlchemy.
+        pool_size: Базовый размер пула соединений.
+        max_overflow: Допустимое число дополнительных соединений сверх пула.
+        pool_pre_ping: Флаг проверки соединения перед выдачей из пула.
+    """
+
+    host: str = "127.0.0.1"
+    port: int = 5432
+    user: str = "postgres"
+    password: str = "postgres"
+    database: str = "economix"
+    echo: bool = False
+    pool_size: int = 5
+    max_overflow: int = 10
+    pool_pre_ping: bool = True
+
+    @property
+    def dsn(self) -> str:
+        """Возвращает DSN-строку для асинхронного драйвера ``asyncpg``.
+
+        Returns:
+            URL подключения вида
+            ``postgresql+asyncpg://user:password@host:port/database``.
+        """
+        return (
+            f"postgresql+asyncpg://{self.user}:{self.password}"
+            f"@{self.host}:{self.port}/{self.database}"
+        )
+
+
 class Settings(BaseSettings):
     """Корневой объект настроек, загружаемых из окружения и файла .env.
 
@@ -34,6 +76,7 @@ class Settings(BaseSettings):
 
     Attributes:
         app: Конфигурация приложения, см. :class:`AppConfig`.
+        sql: Конфигурация подключения к PostgreSQL, см. :class:`SqlConfig`.
     """
 
     model_config = SettingsConfigDict(
@@ -44,6 +87,7 @@ class Settings(BaseSettings):
     )
 
     app: AppConfig = AppConfig()
+    sql: SqlConfig = SqlConfig()
 
 
 settings = Settings()
