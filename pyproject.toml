@@ -13,8 +13,12 @@ dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
     "sqlalchemy[asyncio] (>=2.0.36,<3.0.0)",
     "asyncpg (>=0.30.0,<0.31.0)",
+    "alembic (>=1.13.0,<2.0.0)",
 ]
 
+
+[tool.poetry]
+package-mode = false
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
