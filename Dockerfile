@@ -13,9 +13,7 @@ WORKDIR /app
 RUN pip install "poetry==${POETRY_VERSION}"
 
 COPY pyproject.toml poetry.lock ./
-RUN poetry install --no-root --without dev
-
-COPY app ./app
+RUN poetry install --no-root
 
 EXPOSE 8000
 

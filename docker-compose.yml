@@ -8,14 +8,16 @@ services:
     restart: unless-stopped
     environment:
       APP__HOST: 0.0.0.0
-      APP__PORT: 7813
+      APP__PORT: 8000
       SQL__HOST: postgres
-      SQL__PORT: 7423
+      SQL__PORT: 5432
       SQL__USER: ${SQL__USER:-postgres}
       SQL__PASSWORD: ${SQL__PASSWORD:-postgres}
       SQL__DATABASE: ${SQL__DATABASE:-economix}
     ports:
       - "7813:8000"
+    volumes:
+      - ./app:/app/app
     depends_on:
       postgres:
         condition: service_healthy

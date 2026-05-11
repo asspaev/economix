@@ -43,7 +43,7 @@ class SqlConfig(BaseModel):
         pool_pre_ping: Флаг проверки соединения перед выдачей из пула.
     """
 
-    host: str = "127.0.0.1"
+    host: str = "localhost"
     port: int = 5432
     user: str = "postgres"
     password: str = "postgres"
@@ -61,10 +61,7 @@ class SqlConfig(BaseModel):
             URL подключения вида
             ``postgresql+asyncpg://user:password@host:port/database``.
         """
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.database}"
-        )
+        return f"postgresql+asyncpg://{self.user}:{self.password}" f"@{self.host}:{self.port}/{self.database}"
 
 
 class Settings(BaseSettings):
