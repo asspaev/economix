@@ -64,6 +64,27 @@ class SqlConfig(BaseModel):
         return f"postgresql+asyncpg://{self.user}:{self.password}" f"@{self.host}:{self.port}/{self.database}"
 
 
+class JwtConfig(BaseModel):
+    """Конфигурация сервиса аутентификации на основе JWT.
+
+    Определяет параметры подписи и срока жизни токенов, а также
+    стоимость хэширования паролей алгоритмом bcrypt.
+
+    Attributes:
+        secret_key: Секретный ключ для подписи и верификации токенов.
+        algorithm: Алгоритм подписи JWT (например, ``HS256``).
+        access_token_expire_minutes: Срок жизни access-токена в минутах.
+        issuer: Значение поля ``iss`` JWT, идентифицирующее издателя.
+        bcrypt_rounds: Стоимость хэширования bcrypt (log2 числа итераций).
+    """
+
+    secret_key: str = "change-me-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+    issuer: str = "economix"
+    bcrypt_rounds: int = 12
+
+
 class Settings(BaseSettings):
     """Корневой объект настроек, загружаемых из окружения и файла .env.
 
@@ -74,6 +95,7 @@ class Settings(BaseSettings):
     Attributes:
         app: Конфигурация приложения, см. :class:`AppConfig`.
         sql: Конфигурация подключения к PostgreSQL, см. :class:`SqlConfig`.
+        jwt: Конфигурация JWT-аутентификации, см. :class:`JwtConfig`.
     """
 
     model_config = SettingsConfigDict(
@@ -85,6 +107,7 @@ class Settings(BaseSettings):
 
     app: AppConfig = AppConfig()
     sql: SqlConfig = SqlConfig()
+    jwt: JwtConfig = JwtConfig()
 
 
 settings = Settings()
