@@ -1,0 +1,44 @@
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: economix-app
+    restart: unless-stopped
+    environment:
+      APP__HOST: 0.0.0.0
+      APP__PORT: 7813
+      SQL__HOST: postgres
+      SQL__PORT: 7423
+      SQL__USER: ${SQL__USER:-postgres}
+      SQL__PASSWORD: ${SQL__PASSWORD:-postgres}
+      SQL__DATABASE: ${SQL__DATABASE:-economix}
+    ports:
+      - "7813:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        
+  postgres:
+    image: postgres:17-alpine
+    container_name: economix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SQL__USER:-postgres}
+      POSTGRES_PASSWORD: ${SQL__PASSWORD:-postgres}
+      POSTGRES_DB: ${SQL__DATABASE:-economix}
+    ports:
+      - "7423:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${SQL__USER:-postgres} -d ${SQL__DATABASE:-economix}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
