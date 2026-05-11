@@ -6,6 +6,13 @@ from loguru import logger
 
 from app.api import router as api_router
 from app.config import settings
+from app.core.middleware import JwtAuthMiddleware
+
+PUBLIC_PATHS: tuple[str, ...] = (
+    "/api/v1/auth/register",
+    "/api/v1/auth/login",
+    "/api/v1/auth/logout",
+)
 
 
 @asynccontextmanager
@@ -32,6 +39,7 @@ app = FastAPI(
     debug=settings.app.debug,
     lifespan=lifespan,
 )
+app.add_middleware(JwtAuthMiddleware, public_paths=PUBLIC_PATHS)
 app.include_router(api_router)
 
 
