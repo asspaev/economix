@@ -64,6 +64,38 @@ class SqlConfig(BaseModel):
         return f"postgresql+asyncpg://{self.user}:{self.password}" f"@{self.host}:{self.port}/{self.database}"
 
 
+class RedisConfig(BaseModel):
+    """Конфигурация подключения к Redis.
+
+    Описывает параметры подключения к серверу Redis, используемому
+    приложением для временного хранения данных (например, состояния
+    онбординга пользователя).
+
+    Attributes:
+        host: Хост сервера Redis.
+        port: TCP-порт сервера Redis.
+        db: Номер логической базы данных Redis.
+        password: Пароль для аутентификации (если задан на сервере).
+        decode_responses: Декодировать ли ответы Redis в ``str``.
+    """
+
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+    password: str | None = None
+    decode_responses: bool = True
+
+    @property
+    def url(self) -> str:
+        """Возвращает строку подключения к Redis в формате ``redis://...``.
+
+        Returns:
+            URL подключения, пригодный для ``redis.asyncio.from_url``.
+        """
+        auth = f":{self.password}@" if self.password else ""
+        return f"redis://{auth}{self.host}:{self.port}/{self.db}"
+
+
 class JwtConfig(BaseModel):
     """Конфигурация сервиса аутентификации на основе JWT.
 
@@ -95,6 +127,7 @@ class Settings(BaseSettings):
     Attributes:
         app: Конфигурация приложения, см. :class:`AppConfig`.
         sql: Конфигурация подключения к PostgreSQL, см. :class:`SqlConfig`.
+        redis: Конфигурация подключения к Redis, см. :class:`RedisConfig`.
         jwt: Конфигурация JWT-аутентификации, см. :class:`JwtConfig`.
     """
 
@@ -107,6 +140,7 @@ class Settings(BaseSettings):
 
     app: AppConfig = AppConfig()
     sql: SqlConfig = SqlConfig()
+    redis: RedisConfig = RedisConfig()
     jwt: JwtConfig = JwtConfig()
 
 

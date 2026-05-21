@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import RedisManager, redis_manager
 from app.core.sql import sql_session_manager
 from app.services.jwt import jwt_service
 
@@ -32,6 +33,27 @@ SqlSession = Annotated[AsyncSession, Depends(get_sql_session)]
 
     @router.get("/items")
     async def list_items(session: SqlSession) -> list[Item]:
+        ...
+"""
+
+
+async def get_redis() -> RedisManager:
+    """Поставляет менеджер Redis в обработчики FastAPI.
+
+    Returns:
+        Глобальный экземпляр :class:`RedisManager`, разделяемый между
+        всеми обработчиками приложения.
+    """
+    return redis_manager
+
+
+RedisDep = Annotated[RedisManager, Depends(get_redis)]
+"""Алиас типа для внедрения менеджера Redis в обработчики FastAPI.
+
+Пример::
+
+    @router.get("/state")
+    async def read_state(redis: RedisDep) -> dict[str, Any]:
         ...
 """
 
