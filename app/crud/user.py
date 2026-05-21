@@ -4,6 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 
 
+async def get_by_id(session: AsyncSession, user_id: int) -> User | None:
+    """Возвращает пользователя по идентификатору, либо ``None``.
+
+    Args:
+        session: Активная сессия SQLAlchemy.
+        user_id: Идентификатор пользователя.
+
+    Returns:
+        Найденный экземпляр :class:`User` или ``None``, если запись
+        с указанным идентификатором отсутствует.
+    """
+    return await session.scalar(select(User).where(User.user_id == user_id))
+
+
 async def get_by_username(session: AsyncSession, username: str) -> User | None:
     """Возвращает пользователя по имени, либо ``None``.
 
