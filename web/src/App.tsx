@@ -7,7 +7,7 @@ import {
   RequireAuth,
   RequireOnboardingComplete,
 } from "./auth/RequireAuth";
-import { Home } from "./pages/Home";
+import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Onboarding } from "./pages/Onboarding";
 import { Register } from "./pages/Register";
@@ -48,7 +48,7 @@ export default function App() {
             element={
               <RequireAuth>
                 <RequireOnboardingComplete>
-                  <Home />
+                  <Dashboard />
                 </RequireOnboardingComplete>
               </RequireAuth>
             }
