@@ -18,10 +18,7 @@ class UserSettings(Base):
             ссылается на :class:`User` и каскадно удаляется вместе с ним.
         currency: Код валюты по умолчанию для отображения сумм.
         snapshot_type: Тип снапшота, выбранный пользователем
-            (например, ``monthly`` или ``weekly``).
-        income_categories: Список категорий доходов пользователя.
-        expense_categories: Список категорий расходов пользователя.
-        accounts: Список счетов пользователя.
+            (из списка: ``MONTHLY`` или ``WEEKLY``).
         initial_capital: Стартовый капитал в разрезе счетов в формате
             ``{название_счёта: сумма}``.
     """
@@ -35,7 +32,3 @@ class UserSettings(Base):
     )
     currency: Mapped[str] = mapped_column(Text, nullable=False)
     snapshot_type: Mapped[str] = mapped_column(Text, nullable=False)
-    income_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
-    expense_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
-    accounts: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
-    initial_capital: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)

@@ -17,7 +17,7 @@ class UserCategory(Base):
             ссылается на :class:`User` и каскадно удаляется вместе с ним.
         category_id: Уникальный в пределах пользователя идентификатор
             категории.
-        type: Тип категории (например, ``income`` или ``expense``).
+        type: Тип категории (из списка: ``INCOME``, ``EXPENSE`` или ``ACCOUNT``).
         name: Отображаемое название категории.
         is_archived: Признак архивной категории, скрытой из активных
             списков, но сохранённой для исторических данных.
@@ -33,6 +33,7 @@ class UserCategory(Base):
     category_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     type: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    initial_capital: Mapped[int] = mapped_column(Integer, nullable=True)
     is_archived: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
