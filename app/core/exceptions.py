@@ -21,3 +21,26 @@ class InvalidCredentialsError(AppError):
     Возбуждается сервисом аутентификации, когда пользователь с указанным
     ``username`` не найден или пароль не совпадает с сохранённым хэшем.
     """
+
+
+class OnboardingIncompleteError(AppError):
+    """Состояние онбординга в Redis заполнено не полностью.
+
+    Возбуждается сервисом онбординга при попытке завершить процесс, когда
+    в Redis-ключе пользователя отсутствуют обязательные поля.
+
+    Attributes:
+        missing: Перечень отсутствующих ключей состояния онбординга.
+    """
+
+    def __init__(self, missing: list[str]) -> None:
+        super().__init__(f"Onboarding state is incomplete: {missing}")
+        self.missing = missing
+
+
+class OnboardingAlreadyCompletedError(AppError):
+    """Пользователь уже прошёл онбординг.
+
+    Возбуждается сервисом онбординга, если у пользователя уже существует
+    запись :class:`UserSettings`.
+    """
