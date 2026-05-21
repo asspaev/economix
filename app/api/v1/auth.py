@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from app.config import settings
 from app.core.dependencies import SqlSession
 from app.core.exceptions import InvalidCredentialsError, UsernameAlreadyTakenError
-from app.schemas.auth import LoginRequest, RegisterRequest
+from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest
 from app.schemas.user import UserResponse
 from app.services.auth import auth_service
 
@@ -37,7 +37,7 @@ def _set_access_token_cookie(response: Response, token: str) -> None:
 
 @router.post(
     "/register",
-    response_model=UserResponse,
+    response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def register(
@@ -53,7 +53,8 @@ async def register(
         response: Объект ответа, в который добавляется cookie с JWT.
 
     Returns:
-        Созданная учётная запись пользователя.
+        Созданная учётная запись пользователя и подписанный JWT,
+        который клиент сохраняет в собственный кеш.
 
     Raises:
         fastapi.HTTPException: Со статусом 409, если ``username`` уже занят.
@@ -70,10 +71,10 @@ async def register(
             detail="Username is already taken",
         ) from exc
     _set_access_token_cookie(response, token)
-    return user
+    return AuthResponse(access_token=token, user=UserResponse.model_validate(user))
 
 
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=AuthResponse)
 async def login(
     payload: LoginRequest,
     session: SqlSession,
@@ -87,7 +88,8 @@ async def login(
         response: Объект ответа, в который добавляется cookie с JWT.
 
     Returns:
-        Учётная запись аутентифицированного пользователя.
+        Учётная запись аутентифицированного пользователя и подписанный
+        JWT, который клиент сохраняет в собственный кеш.
 
     Raises:
         fastapi.HTTPException: Со статусом 401, если пара логин/пароль
@@ -105,7 +107,7 @@ async def login(
             detail="Invalid username or password",
         ) from exc
     _set_access_token_cookie(response, token)
-    return user
+    return AuthResponse(access_token=token, user=UserResponse.model_validate(user))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
