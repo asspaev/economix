@@ -1,9 +1,15 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./auth/AuthContext";
-import { RedirectIfAuthed, RequireAuth } from "./auth/RequireAuth";
+import {
+  RedirectIfAuthed,
+  RedirectIfOnboarded,
+  RequireAuth,
+  RequireOnboardingComplete,
+} from "./auth/RequireAuth";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
+import { Onboarding } from "./pages/Onboarding";
 import { Register } from "./pages/Register";
 
 export default function App() {
@@ -28,10 +34,22 @@ export default function App() {
             }
           />
           <Route
+            path="/onboarding"
+            element={
+              <RequireAuth>
+                <RedirectIfOnboarded>
+                  <Onboarding />
+                </RedirectIfOnboarded>
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/"
             element={
               <RequireAuth>
-                <Home />
+                <RequireOnboardingComplete>
+                  <Home />
+                </RequireOnboardingComplete>
               </RequireAuth>
             }
           />

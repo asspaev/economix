@@ -15,8 +15,24 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
-  const { accessToken } = useAuth();
+  const { accessToken, onboardingRequired } = useAuth();
   if (accessToken) {
+    return <Navigate to={onboardingRequired ? "/onboarding" : "/"} replace />;
+  }
+  return <>{children}</>;
+}
+
+export function RequireOnboardingComplete({ children }: { children: ReactNode }) {
+  const { onboardingRequired } = useAuth();
+  if (onboardingRequired) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <>{children}</>;
+}
+
+export function RedirectIfOnboarded({ children }: { children: ReactNode }) {
+  const { onboardingRequired } = useAuth();
+  if (!onboardingRequired) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
