@@ -1,4 +1,5 @@
 import type { CurrencyCode, SnapshotType } from "../api/onboarding";
+import { formatGrouped, parseGrouped } from "../lib/format";
 import { SparkIcon } from "./icons";
 import {
   CategoryEditor,
@@ -7,6 +8,10 @@ import {
   Header,
   type EditableItem,
 } from "./shared";
+
+function groupedMoney(n: number): string {
+  return formatGrouped(String(Math.round(n || 0)));
+}
 
 export type PlanBuckets = {
   income: Record<string, string>;
@@ -200,7 +205,7 @@ export function StepCapital({
 }) {
   const value = (id: string) => capital[id] ?? "";
   const set = (id: string, v: string) =>
-    setCapital({ ...capital, [id]: v.replace(/[^0-9.]/g, "") });
+    setCapital({ ...capital, [id]: parseGrouped(v).replace(/[^0-9.]/g, "") });
 
   const total = assets.reduce(
     (s, a) => s + (parseFloat(capital[a.id] || "0") || 0),
@@ -264,7 +269,7 @@ export function StepCapital({
                   style={{ paddingLeft: 36, fontVariantNumeric: "tabular-nums" }}
                   type="text"
                   inputMode="decimal"
-                  value={value(a.id)}
+                  value={formatGrouped(value(a.id))}
                   onChange={(e) => set(a.id, e.target.value)}
                   placeholder="0"
                 />
@@ -285,7 +290,7 @@ export function StepCapital({
             style={{ fontSize: 32, letterSpacing: "-0.02em", color: "var(--accent)" }}
           >
             {sym}
-            {total.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+            {groupedMoney(total)}
           </div>
         </div>
       </div>
@@ -321,7 +326,10 @@ export function StepPlan({
   const setBucket = (bucket: keyof PlanBuckets, id: string, v: string) => {
     setPlan({
       ...plan,
-      [bucket]: { ...(plan[bucket] || {}), [id]: v.replace(/[^0-9.]/g, "") },
+      [bucket]: {
+        ...(plan[bucket] || {}),
+        [id]: parseGrouped(v).replace(/[^0-9.]/g, ""),
+      },
     });
   };
 
@@ -441,7 +449,7 @@ export function StepPlan({
               >
                 {netDelta >= 0 ? "+" : "−"}
                 {sym}
-                {Math.abs(netDelta).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+                {groupedMoney(Math.abs(netDelta))}
               </span>
             </div>
             <div className="t-small">
@@ -502,7 +510,7 @@ function PlanSection({
           }}
         >
           {sym}
-          {total.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+          {groupedMoney(total)}
         </div>
       </div>
       <div className="col gap-2">
@@ -541,7 +549,7 @@ function PlanSection({
                   }}
                   type="text"
                   inputMode="decimal"
-                  value={val}
+                  value={formatGrouped(val)}
                   onChange={(e) => setBucket(bucket, it.id, e.target.value)}
                   placeholder="0"
                 />
@@ -571,8 +579,7 @@ function MainBreakdown({
   savingsIn: number;
   mainRemainder: number;
 }) {
-  const fmt = (n: number) =>
-    Math.abs(n || 0).toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+  const fmt = (n: number) => groupedMoney(Math.abs(n || 0));
 
   return (
     <div
@@ -673,8 +680,7 @@ function SavingsResult({
   savingsOut: number;
   savingsDelta: number;
 }) {
-  const fmt = (n: number) =>
-    Math.abs(n || 0).toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+  const fmt = (n: number) => groupedMoney(Math.abs(n || 0));
   const positive = savingsDelta >= 0;
   const accent = positive ? "#6BE39A" : "#FF6A5C";
 
@@ -826,8 +832,7 @@ function SavingsBlock({
   const IN_ACCENT = "#6BE39A";
   const OUT_ACCENT = "#FF6A5C";
 
-  const fmt = (n: number) =>
-    `${sym}${(n || 0).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}`;
+  const fmt = (n: number) => `${sym}${groupedMoney(n || 0)}`;
   const netSavings = inTotal - outTotal;
 
   return (
@@ -966,7 +971,7 @@ function SavingsColumn({
           }}
         >
           {sym}
-          {total.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+          {groupedMoney(total)}
         </span>
       </div>
       <div style={{ fontSize: 13, fontWeight: 500, color: "var(--fg-1)" }}>{title}</div>
@@ -1006,7 +1011,7 @@ function SavingsColumn({
                   }}
                   type="text"
                   inputMode="decimal"
-                  value={val}
+                  value={formatGrouped(val)}
                   onChange={(e) => setBucket(bucket, a.id, e.target.value)}
                   placeholder="0"
                 />
