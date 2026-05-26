@@ -10,52 +10,14 @@ import type {
   SnapshotStatus,
 } from "../api/dashboard";
 import { useAuth } from "../auth/AuthContext";
-import { Logo } from "../components/Logo";
+import { AppShell } from "../components/AppShell";
 import { currencySymbol, formatMoney } from "../lib/format";
-
-const RU_MONTHS_GEN = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-];
-
-const RU_MONTHS_NOM = [
-  "январь",
-  "февраль",
-  "март",
-  "апрель",
-  "май",
-  "июнь",
-  "июль",
-  "август",
-  "сентябрь",
-  "октябрь",
-  "ноябрь",
-  "декабрь",
-];
 
 function greetingFor(hours: number): string {
   if (hours < 6) return "Доброй ночи";
   if (hours < 12) return "Доброе утро";
   if (hours < 18) return "Добрый день";
   return "Добрый вечер";
-}
-
-function dayWord(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "день";
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "дня";
-  return "дней";
 }
 
 function directionColor(now: number, expected: number): string {
@@ -71,7 +33,7 @@ function directionGlow(now: number, expected: number): string | null {
 }
 
 export function Dashboard() {
-  const { accessToken, user, signOut } = useAuth();
+  const { accessToken, user } = useAuth();
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,58 +65,43 @@ export function Dashboard() {
   const sym = currencySymbol(data?.currency);
 
   return (
-    <div style={{ position: "relative", height: "100vh", display: "flex", overflow: "hidden" }}>
-      <div className="bg-mesh" />
-      <Sidebar username={username} onSignOut={signOut} />
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          position: "relative",
-        }}
-      >
-        <TopBar />
-        <main style={{ flex: 1, padding: "0 36px 36px", overflowY: "auto" }}>
-          {loading ? (
-            <CenteredMessage text="Загружаем обзор…" />
-          ) : error ? (
-            <CenteredMessage text={error} tone="danger" />
-          ) : data && !data.has_any_snapshot ? (
-            <EmptyState />
-          ) : data ? (
-            <>
-              <Hero username={username} monthLabel={data.current_month_label} />
-              <div style={{ marginTop: 8 }}>
-                <CapitalChart points={data.capital_chart} sym={sym} />
-              </div>
-              <div style={{ marginTop: 16 }}>
-                <OverviewCapital
-                  capital={data.capital}
-                  hasPlan={data.has_current_plan}
-                  sym={sym}
-                />
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginTop: 16,
-                }}
-              >
-                <ExpectedBlockCard data={data.expected_income} tone="income" sym={sym} />
-                <ExpectedBlockCard data={data.expected_expense} tone="expense" sym={sym} />
-              </div>
-              <div style={{ marginTop: 16 }}>
-                <RecentSnapshotsBlock items={data.recent_snapshots} sym={sym} />
-              </div>
-            </>
-          ) : null}
-        </main>
-      </div>
-    </div>
+    <AppShell active="overview" pageLabel="Обзор">
+      {loading ? (
+        <CenteredMessage text="Загружаем обзор…" />
+      ) : error ? (
+        <CenteredMessage text={error} tone="danger" />
+      ) : data && !data.has_any_snapshot ? (
+        <EmptyState />
+      ) : data ? (
+        <>
+          <Hero username={username} monthLabel={data.current_month_label} />
+          <div style={{ marginTop: 8 }}>
+            <CapitalChart points={data.capital_chart} sym={sym} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <OverviewCapital
+              capital={data.capital}
+              hasPlan={data.has_current_plan}
+              sym={sym}
+            />
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              marginTop: 16,
+            }}
+          >
+            <ExpectedBlockCard data={data.expected_income} tone="income" sym={sym} />
+            <ExpectedBlockCard data={data.expected_expense} tone="expense" sym={sym} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <RecentSnapshotsBlock items={data.recent_snapshots} sym={sym} />
+          </div>
+        </>
+      ) : null}
+    </AppShell>
   );
 }
 
@@ -201,216 +148,6 @@ function EmptyState() {
         <button type="button" className="btn btn--primary" style={{ marginTop: 6 }}>
           Создать снапшот
         </button>
-      </div>
-    </div>
-  );
-}
-
-/* ====== Sidebar ====== */
-function Sidebar({ username, onSignOut }: { username: string; onSignOut: () => void }) {
-  const items = [
-    { id: "overview", label: "Обзор", icon: HomeIcon, active: true },
-    { id: "snapshots", label: "Снапшоты", icon: SnapshotIcon, active: false },
-    { id: "categories", label: "Категории", icon: CategoriesIcon, active: false },
-    { id: "analytics", label: "Аналитика", icon: AnalyticsIcon, active: false },
-  ];
-  return (
-    <aside
-      style={{
-        width: 232,
-        flexShrink: 0,
-        borderRight: "1px solid var(--border-soft)",
-        padding: "16px 10px 12px",
-        background: "rgba(10, 10, 11, 0.6)",
-        backdropFilter: "blur(20px)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        position: "sticky",
-        top: 0,
-        alignSelf: "flex-start",
-        height: "100vh",
-        overflowY: "auto",
-        zIndex: 1,
-      }}
-    >
-      <div style={{ padding: "4px 6px 2px" }}>
-        <Logo />
-      </div>
-
-      <div className="col" style={{ gap: 1 }}>
-        <div className="t-eyebrow" style={{ padding: "0 8px 6px" }}>
-          Рабочая область
-        </div>
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <button
-              key={it.id}
-              type="button"
-              style={{
-                height: 32,
-                padding: "0 10px",
-                border: 0,
-                background: it.active ? "var(--bg-2)" : "transparent",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                color: it.active ? "var(--fg-0)" : "var(--fg-1)",
-                font: "inherit",
-                fontSize: 13,
-                cursor: "default",
-                position: "relative",
-                transition: "background 120ms ease, color 120ms ease",
-              }}
-            >
-              {it.active && (
-                <span
-                  style={{
-                    position: "absolute",
-                    left: -10,
-                    top: 6,
-                    bottom: 6,
-                    width: 3,
-                    background: "var(--accent)",
-                    borderRadius: "0 3px 3px 0",
-                    boxShadow: "0 0 12px var(--accent-glow)",
-                  }}
-                />
-              )}
-              <Icon />
-              <span style={{ flex: 1, textAlign: "left" }}>{it.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ flex: 1 }} />
-
-      <div className="col" style={{ gap: 6 }}>
-        <div className="t-eyebrow" style={{ padding: "0 8px" }}>
-          {username || "—"}
-        </div>
-        <button
-          type="button"
-          onClick={onSignOut}
-          style={{
-            height: 32,
-            padding: "0 10px",
-            border: 0,
-            background: "transparent",
-            borderRadius: 8,
-            font: "inherit",
-            fontSize: 13,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            color: "var(--danger)",
-            cursor: "pointer",
-            transition: "background 120ms ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,106,92,0.10)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M9.5 3.5H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5.5M10.5 5.5L13 8l-2.5 2.5M6.5 8H13"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Выйти из аккаунта
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-/* ====== TopBar ====== */
-function TopBar() {
-  const today = useMemo(() => new Date(), []);
-  const nextFiling = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const daysLeft = Math.ceil((nextFiling.getTime() - today.getTime()) / msPerDay);
-  const filingDateLabel = `${nextFiling.getDate()} ${RU_MONTHS_GEN[nextFiling.getMonth()]}`;
-  const filingMonthIdx = (nextFiling.getMonth() + 11) % 12;
-  const summaryForMonth = RU_MONTHS_NOM[filingMonthIdx];
-  const urgent = daysLeft <= 3;
-
-  return (
-    <div
-      style={{
-        height: 52,
-        padding: "0 36px",
-        borderBottom: "1px solid var(--border-soft)",
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "rgba(10,10,11,0.6)",
-        backdropFilter: "blur(20px)",
-        position: "sticky",
-        top: 0,
-        zIndex: 5,
-      }}
-    >
-      <nav className="row gap-2" style={{ alignItems: "center", fontSize: 13 }}>
-        <span
-          style={{
-            color: "var(--fg-2)",
-            padding: "4px 8px",
-            marginLeft: -8,
-            borderRadius: 6,
-          }}
-        >
-          Economix
-        </span>
-        <span style={{ color: "var(--fg-3)", fontSize: 12, lineHeight: 1 }}>/</span>
-        <span style={{ color: "var(--fg-0)", padding: "4px 8px" }}>Обзор</span>
-      </nav>
-
-      <div
-        className="row gap-3"
-        style={{
-          alignItems: "center",
-          height: 32,
-          padding: "0 4px",
-          color: "var(--fg-1)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 13,
-            lineHeight: 1,
-            display: "inline-flex",
-            alignItems: "baseline",
-            gap: 6,
-          }}
-        >
-          <span style={{ color: "var(--fg-2)" }}>Итоги снапшота через</span>
-          <span
-            className="mono"
-            style={{
-              color: urgent ? "var(--danger)" : "var(--fg-0)",
-              fontVariantNumeric: "tabular-nums",
-              fontWeight: 600,
-            }}
-          >
-            {daysLeft} {dayWord(daysLeft)}
-          </span>
-          <span style={{ color: "var(--fg-3)" }}>·</span>
-          <span className="mono" style={{ color: "var(--fg-2)" }}>
-            {filingDateLabel}
-          </span>
-          <span style={{ color: "var(--fg-3)" }}>за {summaryForMonth}</span>
-        </span>
       </div>
     </div>
   );
@@ -1609,80 +1346,3 @@ function RecentSnapshotsBlock({ items, sym }: { items: RecentSnapshot[]; sym: st
   );
 }
 
-/* ====== Sidebar icons ====== */
-function HomeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path
-        d="M3 8l6-5 6 5v7H3V8z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path d="M7.5 15v-4h3v4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SnapshotIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="2.5" y="4.5" width="13" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="9" cy="9.5" r="2.5" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M6.5 4.5L7.5 3h3l1 1.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CategoriesIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="3" y="3" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
-      <rect
-        x="9.5"
-        y="3"
-        width="5.5"
-        height="5.5"
-        rx="1.2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <rect
-        x="3"
-        y="9.5"
-        width="5.5"
-        height="5.5"
-        rx="1.2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-      <rect
-        x="9.5"
-        y="9.5"
-        width="5.5"
-        height="5.5"
-        rx="1.2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
-function AnalyticsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path
-        d="M3 15V8M7 15V4M11 15v-5M15 15v-9"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}

@@ -7,6 +7,7 @@ import {
   RequireAuth,
   RequireOnboardingComplete,
 } from "./auth/RequireAuth";
+import { Categories } from "./pages/Categories";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Onboarding } from "./pages/Onboarding";
@@ -44,7 +45,7 @@ export default function App() {
             }
           />
           <Route
-            path="/"
+            path="/dashboard"
             element={
               <RequireAuth>
                 <RequireOnboardingComplete>
@@ -53,9 +54,28 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/categories"
+            element={
+              <RequireAuth>
+                <RequireOnboardingComplete>
+                  <Categories />
+                </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  );
+}
+
+function RootRedirect() {
+  return (
+    <RequireAuth>
+      <Navigate to="/dashboard" replace />
+    </RequireAuth>
   );
 }
