@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import * as authApi from "../api/auth";
+import { onUnauthorized } from "../api/client";
 import { decodeJwt, type JwtClaims } from "./jwt";
 import {
   clearAuthCache,
@@ -57,6 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuthCache();
     setCache(null);
   }, []);
+
+  useEffect(() => onUnauthorized(signOut), [signOut]);
 
   const value = useMemo<AuthContextValue>(() => {
     const claims = claimsFor(cache);

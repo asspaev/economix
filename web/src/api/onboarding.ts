@@ -1,4 +1,5 @@
 import type { AuthCache } from "../auth/storage";
+import { notifyUnauthorized } from "./client";
 
 export type CurrencyCode = "RUB" | "USD" | "EUR";
 export type SnapshotType = "WEEKLY" | "MONTLY";
@@ -41,6 +42,7 @@ function authHeaders(token: string | null): HeadersInit {
 }
 
 async function parseError(response: Response): Promise<OnboardingApiError> {
+  if (response.status === 401) notifyUnauthorized();
   let detail: unknown = null;
   let message = `Ошибка сервера (${response.status})`;
   try {

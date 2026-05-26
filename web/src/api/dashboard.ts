@@ -51,6 +51,8 @@ export type RecentSnapshot = {
   actual_capital: number | null;
 };
 
+import { notifyUnauthorized } from "./client";
+
 export type CurrencyCode = "RUB" | "USD" | "EUR";
 
 export type DashboardOverview = {
@@ -89,6 +91,7 @@ export async function getOverview(token: string | null): Promise<DashboardOvervi
     credentials: "include",
   });
   if (!response.ok) {
+    if (response.status === 401) notifyUnauthorized();
     throw new DashboardApiError(response.status, `Ошибка сервера (${response.status})`);
   }
   return (await response.json()) as DashboardOverview;
