@@ -44,3 +44,26 @@ class OnboardingAlreadyCompletedError(AppError):
     Возбуждается сервисом онбординга, если у пользователя уже существует
     запись :class:`UserSettings`.
     """
+
+
+class CategoryNotFoundError(AppError):
+    """Категория с указанным ``category_id`` у пользователя не найдена.
+
+    Возбуждается сервисом категорий, когда обращение идёт к чужой или
+    несуществующей категории.
+    """
+
+
+class InvalidCategoryTypeError(AppError):
+    """Передан неизвестный тип категории.
+
+    Допустимые значения — ``INCOME``, ``EXPENSE``, ``ACCOUNT``.
+    """
+
+
+class DuplicateCategoryNameError(AppError):
+    """Имя категории уже занято другой активной категорией того же типа."""
+
+
+class ArchivedCategoryError(AppError):
+    """Попытка изменить поля категории, помещённой в архив."""
