@@ -30,6 +30,7 @@ export type ExpectedBlock = {
 export type CapitalChartPoint = {
   month_key: string;
   label: string;
+  year: number;
   plan: number;
   actual: number | null;
 };

@@ -76,7 +76,11 @@ export function Dashboard() {
         <>
           <Hero username={username} monthLabel={data.current_month_label} />
           <div style={{ marginTop: 8 }}>
-            <CapitalChart points={data.capital_chart} sym={sym} />
+            <CapitalChart
+              points={data.capital_chart}
+              currentKey={data.current_snapshot_key}
+              sym={sym}
+            />
           </div>
           <div style={{ marginTop: 16 }}>
             <OverviewCapital
@@ -222,18 +226,56 @@ function Sparkline({
   );
 }
 
-/* ====== Capital chart ====== */
-function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: string }) {
-  type RangeId = "3m" | "6m" | "1y";
-  const RANGES: { id: RangeId; label: string; n: number }[] = [
-    { id: "3m", label: "3M", n: 3 },
-    { id: "6m", label: "6M", n: 6 },
-    { id: "1y", label: "1 год", n: 12 },
-  ];
-  const [range, setRange] = useState<RangeId>("1y");
-  const n = (RANGES.find((r) => r.id === range) || RANGES[2]).n;
-  const sliced = points.slice(-n);
+/* ====== Capital chart ======
+ * Принцип слайдера (обе границы определены данными):
+ *   Ось графика строится бэком: 12 прошлых (с фактом до текущего) +
+ *   (last_planned_offset + 6) будущих (только план). nowIdx — последний
+ *   месяц с фактом (текущий), lastIdx — последняя будущая точка, она
+ *   же «последний плановый снапшот + 6 месяцев».
+ *
+ *   Левый край окна жёстко зафиксирован на (nowIdx − 3) — «3 месяца +
+ *   первый план». Правый край при slider=max упирается строго в lastIdx
+ *   — «6 месяцев + последний плановый снапшот». Слайдер двигает только
+ *   правый край: span (0..100) превращается в fwd через две линейные
+ *   интерполяции с изломом в 50:
+ *     fwd: span≤50 → 1..mid,  span>50 → mid..fwdMax
+ *   где fwdMax = lastIdx − nowIdx, mid = min(6, fwdMax).
+ *   Прошлое и будущее различаются не слайдером, а признаком actual === null.
+ */
+function CapitalChart({
+  points,
+  currentKey,
+  sym,
+}: {
+  points: CapitalChartPoint[];
+  currentKey: string;
+  sym: string;
+}) {
+  const explicitNowIdx = points.findIndex((p) => p.month_key === currentKey);
+  const fallbackNowIdx = (() => {
+    for (let i = points.length - 1; i >= 0; i--) {
+      if (points[i].actual != null) return i;
+    }
+    return Math.max(0, points.length - 1);
+  })();
+  const nowIdx = explicitNowIdx >= 0 ? explicitNowIdx : fallbackNowIdx;
+  const lastIdx = Math.max(0, points.length - 1);
+
+  const [span, setSpan] = useState(50);
+  const back = 3;
+  const fwdMax = Math.max(1, lastIdx - nowIdx);
+  const fwdMid = Math.min(6, fwdMax);
+  const fwd = span <= 50
+    ? Math.round(1 + (span / 50) * (fwdMid - 1))
+    : Math.round(fwdMid + ((span - 50) / 50) * (fwdMax - fwdMid));
+
+  const startIdx = Math.max(0, nowIdx - back);
+  const endIdx = Math.min(lastIdx, nowIdx + fwd);
+  const sliced = points.slice(startIdx, endIdx + 1);
+  const nowLocal = nowIdx - startIdx;
+
   const months = sliced.map((p) => p.label);
+  const years = sliced.map((p) => p.year);
   const plan = sliced.map((p) => p.plan / 1000);
   const actual = sliced.map((p) => (p.actual == null ? null : p.actual / 1000));
   const hasActual = actual.some((v) => v != null);
@@ -268,29 +310,37 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
   const y = (v: number) =>
     PADY + (1 - (v - min) / Math.max(0.0001, max - min)) * (H - PADY * 2);
 
-  const linePath = (arr: number[]) =>
-    arr
-      .map((v, i) => (i === 0 ? "M" : "L") + x(i).toFixed(1) + "," + y(v).toFixed(1))
-      .join(" ");
-  const areaPath = (arr: number[]) =>
-    linePath(arr) +
-    ` L${x(arr.length - 1).toFixed(1)},${H - PADY} L${x(0).toFixed(1)},${H - PADY} Z`;
-
-  const actualSolid = actual.map((v, i) => (v == null ? plan[i] : v));
+  const linePath = (arr: (number | null)[]) => {
+    let d = "";
+    let started = false;
+    arr.forEach((v, i) => {
+      if (v == null) return;
+      d += (started ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1) + " ";
+      started = true;
+    });
+    return d.trim();
+  };
+  let lastActualI = -1;
+  actual.forEach((v, i) => {
+    if (v != null) lastActualI = i;
+  });
+  const areaPath = lastActualI >= 0
+    ? linePath(actual) +
+      ` L${x(lastActualI).toFixed(1)},${H - PADY} L${x(0).toFixed(1)},${H - PADY} Z`
+    : "";
 
   const [hover, setHover] = useState<number | null>(null);
   useEffect(() => {
     setHover(null);
-  }, [range]);
+  }, [span]);
 
   const active = hover;
   const fmtK = (v: number) => `${sym}${v.toFixed(1)}k`;
   const fmtSigned = (v: number) => (v > 0 ? "+" : "") + v.toFixed(1) + "k";
 
+  const isFuture = active != null && active > nowLocal;
   const TT_W = 178;
   const TT_H = 60;
-  // Anchor tooltip to the upper of plan/actual at the active column so it
-  // never overlaps the active point.
   const anchorY = (() => {
     if (active == null) return PADY;
     const planY = y(plan[active]);
@@ -307,58 +357,19 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
   const delta = activeActual != null ? activeActual - activePlan : 0;
   const deltaColor = delta >= 0 ? "#6BE39A" : "#FF6A5C";
 
+  const futureX0 = nowLocal < months.length - 1 ? x(nowLocal) : null;
+  const rangeLabel = months.length
+    ? `${months[0]} ${years[0]} — ${months[months.length - 1]} ${years[years.length - 1]}`
+    : "";
+
   return (
     <div className="card" style={{ padding: 24 }}>
       <div className="row between" style={{ marginBottom: 18 }}>
         <div className="col gap-1">
           <span className="t-eyebrow">Капитал · план vs факт</span>
-          <span className="t-h3" style={{ marginTop: 4 }}>
-            {range === "3m"
-              ? "Последние 3 месяца"
-              : range === "6m"
-                ? "Последние 6 месяцев"
-                : "Последние 12 месяцев"}
-          </span>
+          <span className="t-h3" style={{ marginTop: 4 }}>{rangeLabel}</span>
         </div>
         <div className="row gap-4" style={{ alignItems: "center" }}>
-          <div
-            className="row"
-            style={{
-              display: "inline-flex",
-              padding: 3,
-              background: "var(--bg-1)",
-              border: "1px solid var(--border-soft)",
-              borderRadius: 999,
-              gap: 2,
-            }}
-          >
-            {RANGES.map((r) => {
-              const isActive = range === r.id;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRange(r.id)}
-                  style={{
-                    height: 24,
-                    padding: "0 10px",
-                    border: 0,
-                    cursor: "pointer",
-                    background: isActive ? "var(--bg-3)" : "transparent",
-                    color: isActive ? "var(--fg-0)" : "var(--fg-2)",
-                    borderRadius: 999,
-                    fontFamily: "Geist Mono, monospace",
-                    fontSize: 11,
-                    letterSpacing: "0.04em",
-                    transition: "color 120ms ease, background 120ms ease",
-                  }}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
-          <span style={{ width: 1, height: 18, background: "var(--border-soft)" }} />
           <Legend color="rgba(255,255,255,0.32)" dash label="План" />
           <Legend color="var(--accent)" label="Факт" />
         </div>
@@ -371,6 +382,15 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
               <stop offset="100%" stopColor="#FFE80A" stopOpacity="0" />
             </linearGradient>
           </defs>
+          {futureX0 != null && (
+            <rect
+              x={futureX0}
+              y={PADY - 4}
+              width={W - PADX - futureX0}
+              height={H - PADY * 2 + 8}
+              fill="rgba(255,255,255,0.018)"
+            />
+          )}
           {[0, 1, 2, 3, 4].map((i) => {
             const yy = PADY + (i / 4) * (H - PADY * 2);
             const v = (max - (i / 4) * (max - min)).toFixed(0);
@@ -384,34 +404,93 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
                   stroke="rgba(255,255,255,0.05)"
                   strokeDasharray="2 4"
                 />
-                <text
-                  x={PADX - 8}
-                  y={yy + 4}
-                  textAnchor="end"
-                  fontSize="11"
-                  fontFamily="Geist Mono"
-                  fill="#55555E"
-                >
-                  {sym}
-                  {v}k
-                </text>
+                {i < 4 && (
+                  <text
+                    x={PADX - 8}
+                    y={yy + 4}
+                    textAnchor="end"
+                    fontSize="11"
+                    fontFamily="Geist Mono"
+                    fill="#55555E"
+                  >
+                    {sym}
+                    {v}k
+                  </text>
+                )}
               </g>
             );
           })}
-          {months.map((m, i) => (
-            <text
-              key={m + i}
-              x={x(i)}
-              y={H - 8}
-              textAnchor="middle"
-              fontSize="11"
-              fontFamily="Geist Mono"
-              fill={i === active ? "#FFE80A" : "#55555E"}
-            >
-              {m}
-            </text>
-          ))}
-          {hasActual && <path d={areaPath(actualSolid)} fill="url(#actualArea)" />}
+          {futureX0 != null && (
+            <g>
+              <line
+                x1={futureX0}
+                x2={futureX0}
+                y1={PADY - 4}
+                y2={H - PADY + 2}
+                stroke="rgba(255,232,10,0.35)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+              />
+              <text
+                x={futureX0}
+                y={PADY - 10}
+                textAnchor="middle"
+                fontSize="9.5"
+                fontFamily="Geist Mono"
+                fill="#8A8A93"
+                letterSpacing="0.08em"
+              >
+                СЕЙЧАС
+              </text>
+            </g>
+          )}
+          {months.map((_, i) => {
+            if (i === 0 || years[i] === years[i - 1]) return null;
+            const xx = x(i);
+            return (
+              <line
+                key={"yd-" + i}
+                x1={xx}
+                x2={xx}
+                y1={PADY}
+                y2={H - PADY + 4}
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth="1"
+              />
+            );
+          })}
+          {months.map((m, i) => {
+            const showYear = i === 0 || years[i] !== years[i - 1];
+            return (
+              <g key={m + i}>
+                <text
+                  x={x(i)}
+                  y={H - 20}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fontFamily="Geist Mono"
+                  fill={i === active ? "#FFE80A" : i > nowLocal ? "#46464E" : "#55555E"}
+                >
+                  {m}
+                </text>
+                {showYear && (
+                  <text
+                    x={x(i)}
+                    y={H - 5}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontFamily="Geist Mono"
+                    fill={i > nowLocal ? "#54545C" : "#6E6E78"}
+                    letterSpacing="0.05em"
+                    style={{ fontWeight: 600 }}
+                  >
+                    {years[i]}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          {areaPath && <path d={areaPath} fill="url(#actualArea)" />}
           <path
             d={linePath(plan)}
             stroke="rgba(255,255,255,0.35)"
@@ -421,7 +500,7 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
           />
           {hasActual && (
             <path
-              d={linePath(actualSolid)}
+              d={linePath(actual)}
               stroke="#FFE80A"
               strokeWidth="2.2"
               fill="none"
@@ -441,47 +520,43 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
               strokeDasharray="2 3"
             />
           )}
-          {/* Plan points — always present, visible only when active or last. */}
           {plan.map((v, i) => {
+            if (i <= nowLocal) return null;
             const isActive = i === active;
-            const isLast = i === plan.length - 1 && !hasActual;
-            const emphasized = isActive || (active == null && isLast);
-            if (!emphasized) return null;
             return (
               <circle
-                key={"plan-" + i}
+                key={"p-" + i}
                 cx={x(i)}
                 cy={y(v)}
-                r={3}
-                fill="#0A0A0B"
-                stroke="rgba(255,255,255,0.55)"
+                r={isActive ? 4 : 2.2}
+                fill="#16161B"
+                stroke="rgba(255,255,255,0.5)"
                 strokeWidth={1.4}
-                strokeDasharray="2 2"
               />
             );
           })}
-          {hasActual &&
-            actualSolid.map((v, i) => {
-              const isActive = i === active;
-              const isLast = i === actualSolid.length - 1;
-              const emphasized = isActive || (active == null && isLast);
-              return (
-                <circle
-                  key={i}
-                  cx={x(i)}
-                  cy={y(v)}
-                  r={emphasized ? 4.5 : 2.5}
-                  fill={emphasized ? "#FFE80A" : "#0A0A0B"}
-                  stroke={emphasized ? "#0A0A0B" : "#FFE80A"}
-                  strokeWidth={emphasized ? 2 : 1.5}
-                  style={
-                    emphasized
-                      ? { filter: "drop-shadow(0 0 6px rgba(255,232,10,0.6))" }
-                      : undefined
-                  }
-                />
-              );
-            })}
+          {actual.map((v, i) => {
+            if (v == null) return null;
+            const isActive = i === active;
+            const isNow = i === nowLocal;
+            const emphasized = isActive || (active == null && isNow);
+            return (
+              <circle
+                key={"a-" + i}
+                cx={x(i)}
+                cy={y(v)}
+                r={emphasized ? 4.5 : 2.5}
+                fill={emphasized ? "#FFE80A" : "#0A0A0B"}
+                stroke={emphasized ? "#0A0A0B" : "#FFE80A"}
+                strokeWidth={emphasized ? 2 : 1.5}
+                style={
+                  emphasized
+                    ? { filter: "drop-shadow(0 0 6px rgba(255,232,10,0.6))" }
+                    : undefined
+                }
+              />
+            );
+          })}
           {months.map((_, i) => {
             const colW = (W - PADX * 2) / Math.max(1, months.length - 1);
             return (
@@ -508,9 +583,20 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
                 style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.5))" }}
               />
               <text x="12" y="18" fontSize="11" fontFamily="Geist Mono" fill="#8A8A93">
-                {months[active]}
+                {months[active]} {years[active]}
               </text>
-              {activeActual != null && (
+              {isFuture ? (
+                <text
+                  x={TT_W - 12}
+                  y="18"
+                  textAnchor="end"
+                  fontSize="11"
+                  fontFamily="Geist Mono"
+                  fill="#8A8A93"
+                >
+                  прогноз
+                </text>
+              ) : activeActual != null ? (
                 <text
                   x={TT_W - 12}
                   y="18"
@@ -521,7 +607,7 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
                 >
                   {fmtSigned(delta)}
                 </text>
-              )}
+              ) : null}
               <text x="12" y="36" fontSize="11" fontFamily="Geist Mono" fill="#8A8A93">
                 план
               </text>
@@ -551,6 +637,38 @@ function CapitalChart({ points, sym }: { points: CapitalChartPoint[]; sym: strin
             </g>
           )}
         </svg>
+      </div>
+      <div className="col gap-2" style={{ marginTop: 18 }}>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={span}
+          onChange={(e) => setSpan(+e.target.value)}
+          className="cap-slider"
+          aria-label="Диапазон периода"
+        />
+        <div className="row between" style={{ alignItems: "center" }}>
+          <span
+            className="t-small dim"
+            style={{ fontFamily: "Geist Mono, monospace", fontSize: 11 }}
+          >
+            −{back} мес
+          </span>
+          <span
+            className="t-small"
+            style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--fg-2)" }}
+          >
+            {months.length} месяцев в окне
+          </span>
+          <span
+            className="t-small dim"
+            style={{ fontFamily: "Geist Mono, monospace", fontSize: 11 }}
+          >
+            прогноз +{fwd} мес
+          </span>
+        </div>
       </div>
     </div>
   );
