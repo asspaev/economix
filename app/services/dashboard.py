@@ -60,7 +60,8 @@ MONTH_LABELS_SHORT_RU: tuple[str, ...] = (
     "Ноя",
     "Дек",
 )
-CHART_MONTHS: int = 12
+CHART_PAST_MONTHS: int = 12
+CHART_FUTURE_BUFFER: int = 6
 RECENT_PAST_MONTHS: int = 2
 RECENT_FUTURE_MONTHS: int = 1
 
@@ -107,6 +108,13 @@ def _parse_month_key(key: str) -> tuple[int, int]:
     """Возвращает пару ``(year, month)`` из ключа ``YYYY-MM``."""
     year_str, month_str = key.split("-")
     return int(year_str), int(month_str)
+
+
+def _months_between(a: str, b: str) -> int:
+    """Расстояние между двумя ключами месяцев в месяцах (``b - a``)."""
+    ay, am = _parse_month_key(a)
+    by, bm = _parse_month_key(b)
+    return (by - ay) * 12 + (bm - am)
 
 
 def _format_long_month(key: str) -> str:
@@ -302,16 +310,32 @@ def _build_capital_chart(
     current_key: str,
     plans_by_key: dict[str, PlannedSnapshot],
     actuals_by_key: dict[str, ActualSnapshot],
+    past_months: int = CHART_PAST_MONTHS,
+    future_months: int | None = None,
 ) -> list[CapitalChartPoint]:
-    """Накопительные ряды плана и факта за последние 12 месяцев.
+    """Накопительные ряды плана и факта вокруг текущего месяца.
 
-    Для каждого месяца в диапазоне план — накопительная сумма ``net`` по
-    плановым снапшотам на конец месяца, факт — то же по фактическим
-    (если для месяца факта нет, ``actual`` равен ``None``).
+    Окно — ``past_months`` назад (включая текущий) и ``future_months``
+    вперёд. По умолчанию ``future_months = last_planned_offset +
+    CHART_FUTURE_BUFFER``, где ``last_planned_offset`` — расстояние от
+    ``current_key`` до самого позднего планового снапшота (но не меньше
+    нуля, если такой план в прошлом или его нет). Так правый край
+    графика жёстко равен ``последний план + 6 месяцев``.
+
+    Для будущих месяцев ряд ``actual`` всегда ``None`` — есть только
+    план; если плана для конкретного будущего месяца нет, ``plan_cum``
+    переносится с предыдущего значения (флэт).
     """
+    if future_months is None:
+        if plans_by_key:
+            last_plan_key = max(plans_by_key.keys())
+            last_planned_offset = max(0, _months_between(current_key, last_plan_key))
+        else:
+            last_planned_offset = 0
+        future_months = last_planned_offset + CHART_FUTURE_BUFFER
     keys = [
         _shift_month_key(current_key, delta)
-        for delta in range(-(CHART_MONTHS - 1), 1)
+        for delta in range(-(past_months - 1), future_months + 1)
     ]
 
     plan_cum = 0
@@ -319,19 +343,22 @@ def _build_capital_chart(
     has_actual = False
     points: list[CapitalChartPoint] = []
     for key in keys:
+        is_future = key > current_key
         plan = plans_by_key.get(key)
         actual = actuals_by_key.get(key)
         if plan is not None:
             plan_cum += _net(plan)
-        if actual is not None:
+        if actual is not None and not is_future:
             actual_cum += _net(actual)
             has_actual = True
+        year, _ = _parse_month_key(key)
         points.append(
             CapitalChartPoint(
                 month_key=key,
                 label=_format_short_month(key),
+                year=year,
                 plan=plan_cum,
-                actual=actual_cum if has_actual else None,
+                actual=None if is_future else (actual_cum if has_actual else None),
             )
         )
     return points

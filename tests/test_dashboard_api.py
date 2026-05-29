@@ -73,7 +73,13 @@ def _full_response() -> DashboardOverviewResponse:
             ],
         ),
         capital_chart=[
-            CapitalChartPoint(month_key="2026-05", label="Май", plan=48_000, actual=46_820),
+            CapitalChartPoint(
+                month_key="2026-05",
+                label="Май",
+                year=2026,
+                plan=48_000,
+                actual=46_820,
+            ),
         ],
         expected_income=ExpectedBlock(
             total=5_840,
