@@ -27,6 +27,20 @@ class CategoryRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CategoriesList(BaseModel):
+    """Коллекция категорий пользователя для страницы «Категории».
+
+    Attributes:
+        items: Категории пользователя (с учётом фильтра по типу, если он
+            задан), упорядоченные по ``category_id``.
+        currency: Код валюты пользователя из ``UserSettings`` (``RUB`` /
+            ``USD`` / ``EUR``). При отсутствии настроек — ``"USD"``.
+    """
+
+    items: list[CategoryRead]
+    currency: str
+
+
 class CategoryCreate(BaseModel):
     """Тело запроса на создание категории.
 

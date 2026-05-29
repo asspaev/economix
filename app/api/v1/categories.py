@@ -10,6 +10,7 @@ from app.core.exceptions import (
     InvalidCategoryTypeError,
 )
 from app.schemas.categories import (
+    CategoriesList,
     CategoryArchive,
     CategoryCreate,
     CategoryRead,
@@ -49,13 +50,13 @@ def _user_id(request: Request) -> int:
         ) from exc
 
 
-@router.get("", response_model=list[CategoryRead])
+@router.get("", response_model=CategoriesList)
 async def list_categories(
     request: Request,
     session: SqlSession,
     type: Annotated[CategoryType | None, Query(description="Фильтр по типу категории")] = None,
-) -> list[CategoryRead]:
-    """Возвращает категории пользователя.
+) -> CategoriesList:
+    """Возвращает категории пользователя и код валюты для отображения.
 
     Args:
         request: Входящий запрос (используется для извлечения ``user_id``).
@@ -63,11 +64,12 @@ async def list_categories(
         type: Опциональный фильтр по типу (``INCOME``/``EXPENSE``/``ACCOUNT``).
 
     Returns:
-        Список категорий, упорядоченный по ``category_id``.
+        Коллекция категорий, упорядоченных по ``category_id``, и код валюты
+        пользователя из ``UserSettings``.
     """
     user_id = _user_id(request)
     try:
-        records = await categories_service.list_for_user(
+        return await categories_service.list_for_user(
             session,
             user_id,
             type_=type,
@@ -77,7 +79,6 @@ async def list_categories(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unknown category type",
         ) from exc
-    return [CategoryRead.model_validate(r) for r in records]
 
 
 @router.post(

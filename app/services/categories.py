@@ -20,8 +20,9 @@ from app.core.exceptions import (
     InvalidCategoryTypeError,
 )
 from app.crud import user_category as user_category_crud
+from app.crud import user_settings as user_settings_crud
 from app.models.user_category import UserCategory
-from app.schemas.categories import CategoryType
+from app.schemas.categories import CategoriesList, CategoryRead, CategoryType
 
 ALLOWED_TYPES: frozenset[str] = frozenset(get_args(CategoryType))
 
@@ -49,8 +50,8 @@ class CategoriesService:
         user_id: int,
         *,
         type_: str | None = None,
-    ) -> list[UserCategory]:
-        """Возвращает категории пользователя, опционально фильтруя по типу.
+    ) -> CategoriesList:
+        """Возвращает категории пользователя и код валюты для отображения.
 
         Args:
             session: Активная сессия SQLAlchemy.
@@ -58,8 +59,8 @@ class CategoriesService:
             type_: Фильтр по типу или ``None`` для всех категорий.
 
         Returns:
-            Список категорий пользователя, упорядоченный по
-            ``category_id``.
+            Объект :class:`CategoriesList` со списком категорий, упорядоченным
+            по ``category_id``, и кодом валюты пользователя.
 
         Raises:
             InvalidCategoryTypeError: Если ``type_`` задан и не входит в
@@ -67,10 +68,16 @@ class CategoriesService:
         """
         if type_ is not None:
             _validate_type(type_)
-        return await user_category_crud.list_by_user(
+        records = await user_category_crud.list_by_user(
             session,
             user_id,
             type_=type_,
+        )
+        settings = await user_settings_crud.get_by_user_id(session, user_id)
+        currency = settings.currency if settings is not None else "USD"
+        return CategoriesList(
+            items=[CategoryRead.model_validate(r) for r in records],
+            currency=currency,
         )
 
     async def create(
