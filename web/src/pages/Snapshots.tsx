@@ -165,7 +165,7 @@ export function Snapshots() {
           snapshotsApi.listSnapshots(accessToken),
         ]);
         if (cancelled) return;
-        setCategories(cats);
+        setCategories(cats.items);
         setSnapshots(snaps);
       } catch (err) {
         if (cancelled) return;

@@ -4,6 +4,7 @@ import * as categoriesApi from "../api/categories";
 import type { Category, CategoryType } from "../api/categories";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
+import { currencySymbol, formatMoney } from "../lib/format";
 
 const MAIN_ACCOUNT_NAME = "Основной счёт";
 
@@ -55,8 +56,8 @@ const KIND_CONFIG: Record<
   },
 };
 
-function fmtMoney(n: number | undefined): string {
-  return "$" + Math.round(n || 0).toLocaleString("en-US");
+function fmtMoney(n: number | undefined, symbol: string): string {
+  return formatMoney(n || 0, symbol);
 }
 
 function pluralRu(n: number, forms: [string, string, string]): string {
@@ -86,6 +87,7 @@ function toGroup(category: Category): GroupItem {
 export function Categories() {
   const { accessToken } = useAuth();
   const [categories, setCategories] = useState<Category[] | null>(null);
+  const [currency, setCurrency] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -95,8 +97,11 @@ export function Categories() {
     let cancelled = false;
     void (async () => {
       try {
-        const list = await categoriesApi.listCategories(accessToken);
-        if (!cancelled) setCategories(list);
+        const collection = await categoriesApi.listCategories(accessToken);
+        if (!cancelled) {
+          setCategories(collection.items);
+          setCurrency(collection.currency);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -113,6 +118,8 @@ export function Categories() {
       cancelled = true;
     };
   }, [accessToken]);
+
+  const symbol = useMemo(() => currencySymbol(currency), [currency]);
 
   const groups = useMemo(() => {
     const empty = { income: [] as GroupItem[], expense: [] as GroupItem[], savings: [] as GroupItem[] };
@@ -238,6 +245,7 @@ export function Categories() {
               showArchived={showArchived}
               onToggleArchive={onToggleArchive}
               onAdd={(name) => onAdd("income", name)}
+              symbol={symbol}
             />
             <CategoryGroup
               kind="expense"
@@ -247,6 +255,7 @@ export function Categories() {
               showArchived={showArchived}
               onToggleArchive={onToggleArchive}
               onAdd={(name) => onAdd("expense", name)}
+              symbol={symbol}
             />
             <CategoryGroup
               kind="savings"
@@ -256,6 +265,7 @@ export function Categories() {
               showArchived={showArchived}
               onToggleArchive={onToggleArchive}
               onAdd={(name) => onAdd("savings", name)}
+              symbol={symbol}
             />
           </div>
 
@@ -472,6 +482,7 @@ function CategoryGroup({
   showArchived,
   onToggleArchive,
   onAdd,
+  symbol,
 }: {
   kind: Kind;
   title: string;
@@ -480,6 +491,7 @@ function CategoryGroup({
   showArchived: boolean;
   onToggleArchive: (categoryId: number, isArchived: boolean) => void;
   onAdd: (name: string) => void;
+  symbol: string;
 }) {
   const cfg = KIND_CONFIG[kind];
   const isSavings = kind === "savings";
@@ -550,7 +562,7 @@ function CategoryGroup({
                   big
                   accent={cfg.accent}
                   glow={cfg.glow}
-                  value={fmtMoney(totalCapital)}
+                  value={fmtMoney(totalCapital, symbol)}
                 />
                 <KpiBlock
                   label="Δ к предыдущему снапшоту"
@@ -566,19 +578,19 @@ function CategoryGroup({
                       }}
                     >
                       {totalChange > 0 ? "+" : totalChange < 0 ? "−" : ""}
-                      {fmtMoney(Math.abs(totalChange))}
+                      {fmtMoney(Math.abs(totalChange), symbol)}
                     </span>
                   }
                 />
               </div>
             ) : (
               <div className="row" style={{ gap: 36, alignItems: "flex-end", marginTop: 4 }}>
-                <KpiBlock label="Факт за всё время" big value={fmtMoney(totalFact)} />
+                <KpiBlock label="Факт за всё время" big value={fmtMoney(totalFact, symbol)} />
                 <KpiBlock
                   label="Ожидание · до посл. факта"
                   accent={cfg.accent}
                   glow={cfg.glow}
-                  value={fmtMoney(totalExpected)}
+                  value={fmtMoney(totalExpected, symbol)}
                   hint={
                     totalFact > 0 ? (
                       <span className="mono" style={{ color: "var(--fg-2)" }}>
@@ -674,6 +686,7 @@ function CategoryGroup({
               cfg={cfg}
               isFirst={i === 0}
               onToggleArchive={() => onToggleArchive(g.categoryId, !g.archived)}
+              symbol={symbol}
             />
           ))}
           {adding && (
@@ -771,12 +784,14 @@ function GroupRow({
   cfg,
   isFirst,
   onToggleArchive,
+  symbol,
 }: {
   group: GroupItem;
   kind: Kind;
   cfg: (typeof KIND_CONFIG)[Kind];
   isFirst: boolean;
   onToggleArchive: () => void;
+  symbol: string;
 }) {
   const isSavings = kind === "savings";
   const archived = !!group.archived;
@@ -894,7 +909,7 @@ function GroupRow({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {fmtMoney(group.capital)}
+            {fmtMoney(group.capital, symbol)}
           </span>
           <span
             className="mono"
@@ -916,7 +931,7 @@ function GroupRow({
               ? "—"
               : group.change === 0
                 ? "0"
-                : (group.change > 0 ? "+" : "−") + fmtMoney(Math.abs(group.change))}
+                : (group.change > 0 ? "+" : "−") + fmtMoney(Math.abs(group.change), symbol)}
           </span>
         </>
       ) : (
@@ -932,7 +947,7 @@ function GroupRow({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {(group.fact ?? 0) > 0 ? fmtMoney(group.fact) : "—"}
+            {(group.fact ?? 0) > 0 ? fmtMoney(group.fact, symbol) : "—"}
           </span>
           <span
             className="mono"
@@ -945,7 +960,7 @@ function GroupRow({
               textShadow: archived ? "none" : `0 0 10px ${cfg.glow}`,
             }}
           >
-            {archived || (group.expected ?? 0) === 0 ? "—" : fmtMoney(group.expected)}
+            {archived || (group.expected ?? 0) === 0 ? "—" : fmtMoney(group.expected, symbol)}
           </span>
         </>
       )}

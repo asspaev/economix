@@ -21,6 +21,11 @@ export type CategoryUpdate = {
   initial_capital?: number | null;
 };
 
+export type CategoriesList = {
+  items: Category[];
+  currency: string;
+};
+
 export class CategoriesApiError extends Error {
   readonly status: number;
   readonly detail: unknown;
@@ -61,7 +66,7 @@ async function parseError(response: Response): Promise<CategoriesApiError> {
 export async function listCategories(
   token: string | null,
   type?: CategoryType,
-): Promise<Category[]> {
+): Promise<CategoriesList> {
   const query = type ? `?type=${encodeURIComponent(type)}` : "";
   const response = await fetch(`/api/v1/categories${query}`, {
     method: "GET",
@@ -69,7 +74,7 @@ export async function listCategories(
     credentials: "include",
   });
   if (!response.ok) throw await parseError(response);
-  return (await response.json()) as Category[];
+  return (await response.json()) as CategoriesList;
 }
 
 export async function createCategory(
