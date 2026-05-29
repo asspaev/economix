@@ -15,7 +15,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Обзор", to: "/dashboard", icon: HomeIcon },
-  { id: "snapshots", label: "Снапшоты", to: null, icon: SnapshotIcon },
+  { id: "snapshots", label: "Снапшоты", to: "/snapshots", icon: SnapshotIcon },
   { id: "categories", label: "Категории", to: "/categories", icon: CategoriesIcon },
   { id: "analytics", label: "Аналитика", to: null, icon: AnalyticsIcon },
 ];

@@ -12,6 +12,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Onboarding } from "./pages/Onboarding";
 import { Register } from "./pages/Register";
+import { Snapshots } from "./pages/Snapshots";
 
 export default function App() {
   return (
@@ -60,6 +61,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboardingComplete>
                   <Categories />
+                </RequireOnboardingComplete>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/snapshots"
+            element={
+              <RequireAuth>
+                <RequireOnboardingComplete>
+                  <Snapshots />
                 </RequireOnboardingComplete>
               </RequireAuth>
             }
