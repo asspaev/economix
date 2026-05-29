@@ -19,7 +19,7 @@ from app.models.user_category import UserCategory
 from app.models.user_settings import UserSettings
 from app.services import analytics as analytics_module
 from app.services.analytics import AnalyticsService
-from app.services.dashboard import CHART_MONTHS
+from app.services.dashboard import CHART_PAST_MONTHS
 from app.services.onboarding import MAIN_ACCOUNT_NAME
 
 
@@ -194,11 +194,11 @@ def test_happy_path_returns_two_options_and_scenario(patch_crud) -> None:
     assert may.income.note.endswith("прогноз к 1 июня")
 
     # Sparkline — 12 значений на ряд.
-    assert len(april.income.spark) == CHART_MONTHS
-    assert len(april.capital.spark) == CHART_MONTHS
+    assert len(april.income.spark) == CHART_PAST_MONTHS
+    assert len(april.capital.spark) == CHART_PAST_MONTHS
 
     # Scenario: 12 точек, actual_total — последний доступный накопительный факт.
-    assert len(result.scenario.points) == CHART_MONTHS
+    assert len(result.scenario.points) == CHART_PAST_MONTHS
     closed_net = (5_000 - 2_000) + (5_200 + 600 - 2_100 - 700)
     assert result.scenario.actual_total == closed_net
     plan_cum = sum(
@@ -272,7 +272,7 @@ def test_empty_user_returns_no_options_and_zero_scenario(patch_crud) -> None:
     assert result.has_any_snapshot is False
     assert result.snapshot_options == []
     assert result.plan_vs_actual == {}
-    assert len(result.scenario.points) == CHART_MONTHS
+    assert len(result.scenario.points) == CHART_PAST_MONTHS
     assert all(p.actual is None for p in result.scenario.points)
     assert all(p.plan == 0 for p in result.scenario.points)
     assert result.scenario.plan_total == 0

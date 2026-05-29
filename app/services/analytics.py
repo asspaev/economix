@@ -30,7 +30,7 @@ from app.schemas.analytics import (
 )
 from app.services.auth import ACCOUNT_CATEGORY_TYPE
 from app.services.dashboard import (
-    CHART_MONTHS,
+    CHART_PAST_MONTHS,
     _build_capital_chart,
     _net,
     _parse_month_key,
@@ -236,7 +236,7 @@ def _spark_for_income_expense(
     """
     keys = [
         _shift_month_key(end_key, delta)
-        for delta in range(-(CHART_MONTHS - 1), 1)
+        for delta in range(-(CHART_PAST_MONTHS - 1), 1)
     ]
     values: list[int] = []
     last = 0
@@ -264,7 +264,7 @@ def _spark_for_capital(
     """
     keys = [
         _shift_month_key(end_key, delta)
-        for delta in range(-(CHART_MONTHS - 1), 1)
+        for delta in range(-(CHART_PAST_MONTHS - 1), 1)
     ]
     values: list[int] = []
     cum = 0
@@ -359,6 +359,7 @@ def _build_scenario(
         current_key=current_key,
         plans_by_key=plans_by_key,
         actuals_by_key=actuals_by_key,
+        future_months=0,
     )
     points = [
         AnalyticsScenarioPoint(
