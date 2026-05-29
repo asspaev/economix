@@ -18,7 +18,9 @@ from app.core.exceptions import (
     InvalidCategoryTypeError,
 )
 from app.crud import user_category as user_category_crud
+from app.crud import user_settings as user_settings_crud
 from app.models.user_category import UserCategory
+from app.models.user_settings import UserSettings
 from app.services.categories import categories_service
 
 
@@ -58,6 +60,19 @@ def _make_category(
 
 def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
+
+
+@pytest.fixture
+def user_settings_store(monkeypatch: pytest.MonkeyPatch) -> dict[int, UserSettings]:
+    """Подменяет CRUD-функцию настроек ин-мемори словарём."""
+
+    store: dict[int, UserSettings] = {}
+
+    async def fake_get(_session: Any, user_id: int) -> UserSettings | None:
+        return store.get(user_id)
+
+    monkeypatch.setattr(user_settings_crud, "get_by_user_id", fake_get)
+    return store
 
 
 @pytest.fixture
@@ -156,6 +171,7 @@ def storage(monkeypatch: pytest.MonkeyPatch) -> list[UserCategory]:
 
 def test_list_filters_by_type_and_validates_type(
     storage: list[UserCategory],
+    user_settings_store: dict[int, UserSettings],
 ) -> None:
     storage.extend(
         [
@@ -163,13 +179,33 @@ def test_list_filters_by_type_and_validates_type(
             _make_category(category_id=2, type_="EXPENSE", name="Жильё"),
         ]
     )
+    user_settings_store[1] = UserSettings(
+        user_id=1,
+        currency="RUB",
+        snapshot_type="MONTLY",
+    )
 
     session = _FakeSession()
     result = _run(categories_service.list_for_user(session, 1, type_="INCOME"))
-    assert [c.name for c in result] == ["Зарплата"]
+    assert [c.name for c in result.items] == ["Зарплата"]
+    assert result.currency == "RUB"
 
     with pytest.raises(InvalidCategoryTypeError):
         _run(categories_service.list_for_user(session, 1, type_="UNKNOWN"))
+
+
+def test_list_defaults_currency_when_settings_missing(
+    storage: list[UserCategory],
+    user_settings_store: dict[int, UserSettings],
+) -> None:
+    storage.append(_make_category(category_id=1, type_="INCOME", name="Зарплата"))
+    del user_settings_store  # стаб настроек умышленно пуст
+
+    session = _FakeSession()
+    result = _run(categories_service.list_for_user(session, 1))
+
+    assert [c.name for c in result.items] == ["Зарплата"]
+    assert result.currency == "USD"
 
 
 def test_create_assigns_next_id_and_commits(

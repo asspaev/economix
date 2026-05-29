@@ -24,6 +24,7 @@ from app.core.exceptions import (
 )
 from app.main import app
 from app.models.user_category import UserCategory
+from app.schemas.categories import CategoriesList, CategoryRead
 from app.services.jwt import jwt_service
 
 
@@ -84,11 +85,18 @@ def test_list_categories_returns_records(
     client: TestClient,
     auth_token: str,
 ) -> None:
-    records = [
-        _make_record(category_id=1, type_="INCOME", name="Зарплата"),
-        _make_record(category_id=2, type_="EXPENSE", name="Жильё"),
-    ]
-    list_mock = AsyncMock(return_value=records)
+    collection = CategoriesList(
+        items=[
+            CategoryRead.model_validate(
+                _make_record(category_id=1, type_="INCOME", name="Зарплата"),
+            ),
+            CategoryRead.model_validate(
+                _make_record(category_id=2, type_="EXPENSE", name="Жильё"),
+            ),
+        ],
+        currency="RUB",
+    )
+    list_mock = AsyncMock(return_value=collection)
     monkeypatch.setattr(categories_api.categories_service, "list_for_user", list_mock)
 
     response = client.get(
@@ -99,9 +107,10 @@ def test_list_categories_returns_records(
 
     assert response.status_code == 200
     data = response.json()
-    assert [c["name"] for c in data] == ["Зарплата", "Жильё"]
-    assert data[0]["type"] == "INCOME"
-    assert data[0]["is_archived"] is False
+    assert [c["name"] for c in data["items"]] == ["Зарплата", "Жильё"]
+    assert data["items"][0]["type"] == "INCOME"
+    assert data["items"][0]["is_archived"] is False
+    assert data["currency"] == "RUB"
 
     list_mock.assert_awaited_once()
     _, called_user_id = list_mock.call_args.args
