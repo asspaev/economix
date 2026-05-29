@@ -1,6 +1,7 @@
 export type CachedUser = {
   user_id: number;
   username: string;
+  created_at?: string;
 };
 
 export type AuthCache = {

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -132,6 +133,7 @@ def test_complete_returns_new_token_and_clears_cookie(
     )
     user = User(username="anna", password_hash="$2b$12$hash")
     user.user_id = 42
+    user.created_at = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
     monkeypatch.setattr(
         onboarding_api.user_crud,
         "get_by_id",
@@ -148,7 +150,11 @@ def test_complete_returns_new_token_and_clears_cookie(
     assert payload == {
         "access_token": new_token,
         "token_type": "bearer",
-        "user": {"user_id": 42, "username": "anna"},
+        "user": {
+            "user_id": 42,
+            "username": "anna",
+            "created_at": "2026-01-15T12:00:00Z",
+        },
     }
     assert response.cookies.get("access_token") == new_token
 

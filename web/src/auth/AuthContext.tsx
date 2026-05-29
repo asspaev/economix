@@ -17,6 +17,7 @@ type AuthContextValue = {
   accessToken: string | null;
   onboardingRequired: boolean;
   initialCapital: Record<string, number>;
+  registeredAt: Date | null;
   signIn: (credentials: { username: string; password: string }) => Promise<void>;
   signUp: (credentials: { username: string; password: string }) => Promise<void>;
   signOut: () => void;
@@ -63,11 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => {
     const claims = claimsFor(cache);
+    let registeredAt: Date | null = null;
+    if (cache?.user?.created_at) {
+      const parsed = new Date(cache.user.created_at);
+      if (!Number.isNaN(parsed.getTime())) registeredAt = parsed;
+    }
+    if (registeredAt === null && typeof claims?.registered_at === "number") {
+      registeredAt = new Date(claims.registered_at * 1000);
+    }
     return {
       user: cache?.user ?? null,
       accessToken: cache?.access_token ?? null,
       onboardingRequired: Boolean(claims?.onboarding_required),
       initialCapital: claims?.initial_capital ?? {},
+      registeredAt,
       signIn,
       signUp,
       signOut,

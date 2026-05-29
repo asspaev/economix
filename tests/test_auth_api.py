@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -40,9 +41,14 @@ def client(fake_session: object) -> TestClient:
         app.dependency_overrides.clear()
 
 
+REGISTERED_AT = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+REGISTERED_AT_JSON = "2026-01-15T12:00:00Z"
+
+
 def _make_user(user_id: int = 1, username: str = "anna_v") -> User:
     user = User(username=username, password_hash="$2b$12$hash")
     user.user_id = user_id
+    user.created_at = REGISTERED_AT
     return user
 
 
@@ -62,7 +68,11 @@ def test_register_returns_token_and_user(monkeypatch: pytest.MonkeyPatch, client
     assert payload == {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"user_id": 1, "username": "anna_v"},
+        "user": {
+            "user_id": 1,
+            "username": "anna_v",
+            "created_at": REGISTERED_AT_JSON,
+        },
     }
     assert response.cookies.get("access_token") == token
     register_mock.assert_awaited_once()
@@ -104,7 +114,11 @@ def test_login_returns_token_and_user(monkeypatch: pytest.MonkeyPatch, client: T
     assert payload == {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"user_id": 7, "username": "boris"},
+        "user": {
+            "user_id": 7,
+            "username": "boris",
+            "created_at": REGISTERED_AT_JSON,
+        },
     }
     assert response.cookies.get("access_token") == token
     login_mock.assert_awaited_once()

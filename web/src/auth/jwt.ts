@@ -5,6 +5,7 @@ export type JwtClaims = {
   exp?: number;
   onboarding_required?: boolean;
   initial_capital?: Record<string, number>;
+  registered_at?: number;
 };
 
 function base64UrlDecode(input: string): string {

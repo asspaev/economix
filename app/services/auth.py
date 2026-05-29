@@ -96,7 +96,11 @@ class AuthService:
         )
         token = self._jwt.create_token(
             subject=user.user_id,
-            extra_claims={"onboarding_required": True, "initial_capital": {}},
+            extra_claims={
+                "onboarding_required": True,
+                "initial_capital": {},
+                "registered_at": int(user.created_at.timestamp()),
+            },
         )
         return user, token
 
@@ -127,6 +131,7 @@ class AuthService:
         if user is None or not self._jwt.verify_password(password, user.password_hash):
             raise InvalidCredentialsError()
         claims = await build_auth_claims(session, user.user_id)
+        claims["registered_at"] = int(user.created_at.timestamp())
         token = self._jwt.create_token(subject=user.user_id, extra_claims=claims)
         return user, token
 
