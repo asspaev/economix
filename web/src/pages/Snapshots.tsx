@@ -214,8 +214,14 @@ export function Snapshots() {
       if (parsed.year < minYear) minYear = parsed.year;
       if (parsed.year > maxYear) maxYear = parsed.year;
     }
-    // Show through the end of the current year (at minimum).
-    if (maxYear < today.getFullYear()) maxYear = today.getFullYear();
+    // Base horizon: 5 years total (current + 4 future).
+    const baseHorizon = today.getFullYear() + 4;
+    if (maxYear < baseHorizon) maxYear = baseHorizon;
+    // Rolling horizon: пока декабрь последнего видимого года запланирован,
+    // открываем следующий год для планирования.
+    while (plannedMap.has(buildSnapshotKey(maxYear, 11))) {
+      maxYear += 1;
+    }
 
     const todayYear = today.getFullYear();
     const todayMonth = today.getMonth();
@@ -261,7 +267,7 @@ export function Snapshots() {
       bucket.push(row);
       map.set(row.year, bucket);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => b - a); // newest first
+    return Array.from(map.entries()).sort(([a], [b]) => a - b); // oldest first
   }, [viewModel]);
 
   const currentSnapshotKey = useMemo(
