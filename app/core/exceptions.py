@@ -67,3 +67,22 @@ class DuplicateCategoryNameError(AppError):
 
 class ArchivedCategoryError(AppError):
     """Попытка изменить поля категории, помещённой в архив."""
+
+
+class InvalidSnapshotKeyError(AppError):
+    """Передан ключ снапшота в недопустимом формате.
+
+    Ожидается строка вида ``YYYY-MM`` с месяцем от ``01`` до ``12``.
+    """
+
+
+class UnknownCategoryInSnapshotError(AppError):
+    """В пейлоаде снапшота указано несуществующее у пользователя имя категории.
+
+    Attributes:
+        category_names: Перечень имён, которых нет среди активных категорий.
+    """
+
+    def __init__(self, category_names: list[str]) -> None:
+        super().__init__(f"Unknown category names in snapshot: {category_names}")
+        self.category_names = category_names
